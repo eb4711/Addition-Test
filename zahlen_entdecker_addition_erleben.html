@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Zahlen-Entdecker – Addition erleben</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti Library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    /* Verhindert unbeabsichtigtes Zoomen und Scrollen auf dem iPad */
+    body {
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    /* Animationen */
+    @keyframes bounce-in {
+      0% { transform: scale(0) translateY(-40px); opacity: 0; }
+      60% { transform: scale(1.1) translateY(8px); opacity: 1; }
+      100% { transform: scale(1) translateY(0); }
+    }
+    .animate-bounce-in {
+      animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes shake-wrong {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-12px); }
+      40%, 80% { transform: translateX(12px); }
+    }
+    .animate-shake {
+      animation: shake-wrong 0.4s ease-in-out;
+    }
+
+    @keyframes pulse-subtle {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2s infinite ease-in-out;
+    }
+
+    @keyframes float-gentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-float {
+      animation: float-gentle 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-teal-50 via-sky-50 to-emerald-100 text-slate-800 min-h-screen flex flex-col justify-between p-3 sm:p-5 overflow-x-hidden">
+
+  <!-- Canvas für Konfetti-Animation -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
+
+  <!-- KOPFZEILE: Menü, Sprachausgabe & Sterne -->
+  <header class="flex justify-between items-center bg-white/90 backdrop-blur-sm rounded-3xl p-3 sm:p-4 shadow-xl border-4 border-sky-200">
+    <!-- Home / Menü Button -->
+    <button id="btn-home" onclick="showMenu()" class="bg-sky-500 hover:bg-sky-600 text-white rounded-2xl p-3 text-2xl sm:text-3xl shadow-md active:scale-95 transition-all flex items-center justify-center min-w-[56px] min-h-[56px]">
+      🏠
+    </button>
+
+    <!-- Sprachausgabe erneut abspielen -->
+    <button id="btn-speak" onclick="repeatInstruction()" class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl px-4 py-3 text-2xl shadow-md active:scale-95 transition-all flex items-center gap-2 font-bold min-h-[56px]">
+      🔊 <span class="hidden sm:inline text-xl">Anhören</span>
+    </button>
+
+    <!-- Sterneanzeige (Fortschritt) -->
+    <div class="flex gap-2 bg-amber-50 px-4 py-2 rounded-2xl border-2 border-amber-200 items-center">
+      <span id="star-1" class="text-3xl sm:text-4xl text-gray-300 transition-all duration-500">⭐</span>
+      <span id="star-2" class="text-3xl sm:text-4xl text-gray-300 transition-all duration-500">⭐</span>
+      <span id="star-3" class="text-3xl sm:text-4xl text-gray-300 transition-all duration-500">⭐</span>
+    </div>
+  </header>
+
+  <!-- HAUPTBEREICH / SPIELANZEIGE -->
+  <main id="game-container" class="flex-1 flex flex-col justify-center items-center my-3 relative">
+    
+    <!-- LEVEL SELEKTOR (MENÜ) -->
+    <div id="view-menu" class="w-full max-w-xl flex flex-col gap-5 items-center my-auto">
+      
+      <!-- Banner -->
+      <div class="flex flex-col sm:flex-row items-center gap-4 bg-white/95 p-5 rounded-3xl border-4 border-sky-300 shadow-xl w-full">
+        <div class="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 relative flex items-center justify-center bg-sky-100 rounded-full border-4 border-sky-300">
+          <span class="text-6xl animate-float">➕</span>
+        </div>
+        <div class="text-center sm:text-left">
+          <h1 class="text-3xl sm:text-4xl font-black text-sky-800 leading-tight">
+            Zahlen-Entdecker
+          </h1>
+          <p class="text-slate-600 font-bold text-base sm:text-lg mt-1">
+            Gemeinsam die Addition verstehen!
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 w-full gap-4">
+        <!-- Stufe 1 Button -->
+        <button onclick="startLevel(1)" class="bg-gradient-to-r from-emerald-300 to-emerald-400 hover:from-emerald-400 hover:to-emerald-500 border-b-8 border-emerald-600 text-slate-900 rounded-3xl p-5 shadow-xl active:translate-y-1 active:border-b-4 transition-all flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-4xl sm:text-5xl">👀</span>
+            <div class="text-left">
+              <div class="text-2xl font-black text-emerald-950">Stufe 1</div>
+              <div class="text-sm sm:text-base text-emerald-900 font-bold">In 3 Schritten zur Plusaufgabe</div>
+            </div>
+          </div>
+          <span class="text-3xl bg-white/50 rounded-2xl p-2 shadow-inner">▶️</span>
+        </button>
+
+        <!-- Stufe 2 Button -->
+        <button onclick="startLevel(2)" class="bg-gradient-to-r from-sky-300 to-sky-400 hover:from-sky-400 hover:to-sky-500 border-b-8 border-sky-600 text-slate-900 rounded-3xl p-5 shadow-xl active:translate-y-1 active:border-b-4 transition-all flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-4xl sm:text-5xl">🎁</span>
+            <div class="text-left">
+              <div class="text-2xl font-black text-sky-950">Stufe 2</div>
+              <div class="text-sm sm:text-base text-sky-900 font-bold">Dazulegen & mit ✔️ prüfen</div>
+            </div>
+          </div>
+          <span class="text-3xl bg-white/50 rounded-2xl p-2 shadow-inner">▶️</span>
+        </button>
+
+        <!-- Stufe 3 Button -->
+        <button onclick="startLevel(3)" class="bg-gradient-to-r from-indigo-300 to-indigo-400 hover:from-indigo-400 hover:to-indigo-500 border-b-8 border-indigo-600 text-slate-900 rounded-3xl p-5 shadow-xl active:translate-y-1 active:border-b-4 transition-all flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-4xl sm:text-5xl">🖼️</span>
+            <div class="text-left">
+              <div class="text-2xl font-black text-indigo-950">Stufe 3</div>
+              <div class="text-sm sm:text-base text-indigo-900 font-bold">3-teilige Geschichte & Plusaufgabe</div>
+            </div>
+          </div>
+          <span class="text-3xl bg-white/50 rounded-2xl p-2 shadow-inner">▶️</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SPIEL-INTERFACING -->
+    <div id="view-game" class="hidden w-full max-w-4xl flex flex-col items-center justify-between h-full gap-3 sm:gap-4">
+      
+      <!-- Aufgaben-Header (Für Stufe 2) -->
+      <div id="task-header" class="hidden text-3xl sm:text-5xl font-black text-slate-800 bg-white/90 px-8 py-2 rounded-3xl border-4 border-sky-300 shadow-md">
+        <!-- Z.B. 2 + 1 -->
+      </div>
+
+      <!-- Arbeitsbereich / Geschichten-Triptychon -->
+      <div id="work-container" class="w-full flex flex-col items-center justify-center">
+        
+        <!-- Arbeitsbereich (Sammelzone für Stufe 1 & 2) -->
+        <div id="work-area" class="w-full bg-white/95 rounded-3xl border-4 border-dashed border-sky-300 p-4 sm:p-6 min-h-[200px] flex items-center justify-center flex-wrap gap-4 shadow-inner relative">
+          <!-- Dynamische Objekte erscheinen hier -->
+        </div>
+
+      </div>
+
+      <!-- Interaktionsbereich (Antwortkarten / Spender) -->
+      <div id="action-area" class="w-full bg-sky-100/90 rounded-3xl p-4 sm:p-5 border-4 border-sky-300 min-h-[140px] flex items-center justify-center gap-3 sm:gap-4 flex-wrap shadow-md">
+        <!-- Interaktive Buttons -->
+      </div>
+
+    </div>
+
+    <!-- BELOHNUNGS-BILDSCHIRM (Level geschafft) -->
+    <div id="view-reward" class="hidden text-center flex-col items-center justify-center gap-5 animate-bounce-in my-auto">
+      <div class="text-8xl sm:text-9xl animate-bounce">🎉✨</div>
+      <div class="text-4xl sm:text-5xl font-black text-sky-800">SUPER GEMACHT!</div>
+      <div class="text-6xl sm:text-8xl">⭐ ⭐ ⭐</div>
+      <p class="text-xl font-bold text-slate-700 bg-white/90 px-6 py-2 rounded-full border-2 border-sky-200">
+        Du hast alle Aufgaben richtig gelöst!
+      </p>
+      <button onclick="showMenu()" class="mt-2 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-2xl sm:text-3xl px-8 py-5 rounded-3xl shadow-2xl border-b-8 border-emerald-700 active:translate-y-2 transition-all">
+        Zur Übersicht 🏠
+      </button>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="text-center text-slate-500 text-xs sm:text-sm font-bold">
+    Zahlen-Entdecker • Operationsverständnis der Addition
+  </footer>
+
+  <script>
+    // Audio Context für synthetische Sounds (Web Audio API)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+      }
+    }
+
+    function playSuccessSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.3);
+
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+
+    function playPopSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.12);
+
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    }
+
+    function playWrongSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.setValueAtTime(130, now + 0.15);
+
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+
+    function playFanfareSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime + (idx * 0.12);
+
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      });
+    }
+
+    // SPRACHAUSGABE (Web Speech API)
+    let currentSpeechText = "";
+
+    function speak(text) {
+      currentSpeechText = text;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'de-DE';
+        utterance.rate = 0.85;
+        utterance.pitch = 1.05;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function repeatInstruction() {
+      if (currentSpeechText) {
+        speak(currentSpeechText);
+      }
+    }
+
+    // GAME STATE
+    let currentLevel = 1;
+    let currentTaskIndex = 0;
+    let scoreStars = 0;
+
+    const EMOJI_ITEMS = ['🍎', '🐻', '⭐', '🐟', '🚗', '🐱', '🎈', '🎁'];
+    let currentEmoji = '🍎';
+
+    let activeLevel1Data = { countA: 1, countB: 1 };
+
+    function showMenu() {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      document.getElementById('view-menu').classList.remove('hidden');
+      document.getElementById('view-game').classList.add('hidden');
+      document.getElementById('view-reward').classList.add('hidden');
+      resetStars();
+    }
+
+    function resetStars() {
+      scoreStars = 0;
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById(`star-${i}`).classList.remove('text-amber-400', 'scale-125');
+        document.getElementById(`star-${i}`).classList.add('text-gray-300');
+      }
+    }
+
+    function addStar() {
+      scoreStars++;
+      if (scoreStars <= 3) {
+        const star = document.getElementById(`star-${scoreStars}`);
+        star.classList.remove('text-gray-300');
+        star.classList.add('text-amber-400', 'scale-125');
+        playSuccessSound();
+      }
+    }
+
+    function getRandomEmoji() {
+      return EMOJI_ITEMS[Math.floor(Math.random() * EMOJI_ITEMS.length)];
+    }
+
+    function startLevel(lvl) {
+      currentLevel = lvl;
+      currentTaskIndex = 0;
+      resetStars();
+
+      if (lvl === 1) {
+        currentEmoji = getRandomEmoji();
+        activeLevel1Data.countA = Math.floor(Math.random() * 2) + 1;
+        activeLevel1Data.countB = Math.floor(Math.random() * 2) + 1;
+      }
+
+      document.getElementById('view-menu').classList.add('hidden');
+      document.getElementById('view-game').classList.remove('hidden');
+      document.getElementById('view-reward').classList.add('hidden');
+
+      loadTask();
+    }
+
+    function nextTask() {
+      addStar();
+      currentTaskIndex++;
+
+      if (currentTaskIndex >= 3) {
+        setTimeout(showReward, 1000);
+      } else {
+        if (currentLevel === 1) {
+          activeLevel1Data.countA = Math.floor(Math.random() * 2) + 1;
+          activeLevel1Data.countB = Math.floor(Math.random() * 2) + 1;
+        }
+        setTimeout(loadTask, 1200);
+      }
+    }
+
+    function loadTask() {
+      if (currentLevel !== 1) {
+        currentEmoji = getRandomEmoji();
+      }
+      
+      const workArea = document.getElementById('work-area');
+      const actionArea = document.getElementById('action-area');
+      const taskHeader = document.getElementById('task-header');
+
+      workArea.innerHTML = '';
+      actionArea.innerHTML = '';
+      taskHeader.classList.add('hidden');
+
+      if (currentLevel === 1) {
+        setupLevel1();
+      } else if (currentLevel === 2) {
+        setupLevel2();
+      } else if (currentLevel === 3) {
+        setupLevel3();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // STUFE 1: 3-SCHRITT-SYSTEM
+    // -------------------------------------------------------------
+    let level1Step = 1;
+
+    function setupLevel1() {
+      if (level1Step === 1) {
+        setupLevel1Step1();
+      } else if (level1Step === 2) {
+        setupLevel1Step2();
+      } else {
+        setupLevel1Step3();
+      }
+    }
+
+    function setupLevel1Step1() {
+      const workArea = document.getElementById('work-area');
+      const actionArea = document.getElementById('action-area');
+
+      const groupA = document.createElement('div');
+      groupA.className = "flex gap-2 bg-emerald-50 p-4 rounded-2xl border-2 border-emerald-200 items-center animate-bounce-in";
+      for (let i = 0; i < activeLevel1Data.countA; i++) {
+        groupA.appendChild(createItemSpan(currentEmoji));
+      }
+      workArea.appendChild(groupA);
+
+      speak(`Wie viele sind da?`);
+
+      const choices = [activeLevel1Data.countA];
+      while (choices.length < 3) {
+        let r = Math.floor(Math.random() * 3) + 1;
+        if (!choices.includes(r)) choices.push(r);
+      }
+      choices.sort(() => Math.random() - 0.5);
+
+      choices.forEach(num => {
+        const btn = document.createElement('button');
+        btn.className = "bg-white border-b-8 border-emerald-500 hover:bg-emerald-50 rounded-3xl p-5 text-4xl sm:text-5xl font-black text-emerald-950 shadow-xl active:scale-95 transition-all min-w-[100px] flex items-center justify-center";
+        btn.innerText = num;
+
+        btn.onclick = () => {
+          if (num === activeLevel1Data.countA) {
+            btn.classList.add('bg-emerald-200', 'border-emerald-600');
+            speak("Richtig!");
+            level1Step = 2;
+            setTimeout(loadTask, 800);
+          } else {
+            playWrongSound();
+            btn.classList.add('bg-red-100', 'border-red-400');
+            speak("Zähle noch einmal genau nach!");
+          }
+        };
+
+        actionArea.appendChild(btn);
+      });
+    }
+
+    function setupLevel1Step2() {
+      const workArea = document.getElementById('work-area');
+      const actionArea = document.getElementById('action-area');
+
+      // Ausgangsmenge (bleibt links sichtbar)
+      const groupA = document.createElement('div');
+      groupA.className = "flex gap-2 bg-emerald-50/60 p-4 rounded-2xl border-2 border-emerald-200 items-center";
+      for (let i = 0; i < activeLevel1Data.countA; i++) {
+        groupA.appendChild(createItemSpan(currentEmoji, 'text-5xl sm:text-6xl'));
+      }
+      workArea.appendChild(groupA);
+
+      speak(`Wie viele kommen dazu?`);
+
+      setTimeout(() => {
+        const groupB = document.createElement('div');
+        groupB.className = "flex gap-2 bg-sky-100 p-4 rounded-2xl border-2 border-sky-400 items-center animate-bounce-in";
+        for (let i = 0; i < activeLevel1Data.countB; i++) {
+          playPopSound();
+          groupB.appendChild(createItemSpan(currentEmoji, 'text-5xl sm:text-6xl'));
+        }
+        workArea.appendChild(groupB);
+      }, 600);
+
+      const choices = [activeLevel1Data.countB];
+      while (choices.length < 3) {
+        let r = Math.floor(Math.random() * 3) + 1;
+        if (!choices.includes(r)) choices.push(r);
+      }
+      choices.sort(() => Math.random() - 0.5);
+
+      setTimeout(() => {
+        actionArea.innerHTML = '';
+        choices.forEach(num => {
+          const btn = document.createElement('button');
+          btn.className = "bg-white border-b-8 border-emerald-500 hover:bg-emerald-50 rounded-3xl p-5 text-4xl sm:text-5xl font-black text-emerald-950 shadow-xl active:scale-95 transition-all min-w-[100px] flex items-center justify-center";
+          btn.innerText = num;
+
+          btn.onclick = () => {
+            if (num === activeLevel1Data.countB) {
+              btn.classList.add('bg-emerald-200', 'border-emerald-600');
+              speak("Klasse! So viele kommen dazu!");
+              level1Step = 3;
+              setTimeout(loadTask, 800);
+            } else {
+              playWrongSound();
+              btn.classList.add('bg-red-100', 'border-red-400');
+              speak("Schau genau hin, wie viele dazugekommen sind!");
+            }
+          };
+
+          actionArea.appendChild(btn);
+        });
+      }, 1200);
+    }
+
+    function setupLevel1Step3() {
+      const workArea = document.getElementById('work-area');
+      const actionArea = document.getElementById('action-area');
+
+      const groupA = document.createElement('div');
+      groupA.className = "flex gap-2 bg-emerald-50 p-3 rounded-2xl border-2 border-emerald-200 items-center";
+      for (let i = 0; i < activeLevel1Data.countA; i++) groupA.appendChild(createItemSpan(currentEmoji, 'text-4xl sm:text-5xl'));
+
+      const plus = document.createElement('span');
+      plus.className = "text-4xl font-black text-sky-600 px-1";
+      plus.innerText = "+";
+
+      const groupB = document.createElement('div');
+      groupB.className = "flex gap-2 bg-sky-100 p-3 rounded-2xl border-2 border-sky-400 items-center";
+      for (let i = 0; i < activeLevel1Data.countB; i++) groupB.appendChild(createItemSpan(currentEmoji, 'text-4xl sm:text-5xl'));
+
+      workArea.appendChild(groupA);
+      workArea.appendChild(plus);
+      workArea.appendChild(groupB);
+
+      speak("Welche Plusaufgabe passt dazu?");
+
+      const correctOption = `${activeLevel1Data.countA} + ${activeLevel1Data.countB}`;
+      const optionsSet = new Set([correctOption]);
+
+      while (optionsSet.size < 3) {
+        let rA = Math.floor(Math.random() * 2) + 1;
+        let rB = Math.floor(Math.random() * 2) + 1;
+        optionsSet.add(`${rA} + ${rB}`);
+      }
+
+      const options = Array.from(optionsSet).sort(() => Math.random() - 0.5);
+
+      options.forEach(optStr => {
+        const [a, b] = optStr.split(' + ').map(Number);
+        const btn = document.createElement('button');
+        btn.className = "bg-white border-b-8 border-emerald-500 hover:bg-emerald-50 rounded-3xl p-4 sm:p-5 shadow-xl active:scale-95 transition-all min-w-[130px] flex items-center justify-center";
+        
+        btn.innerHTML = `
+          <span class="text-3xl sm:text-4xl font-black text-emerald-950">${a} + ${b}</span>
+        `;
+
+        btn.onclick = () => {
+          if (optStr === correctOption) {
+            btn.classList.add('bg-emerald-200', 'border-emerald-600');
+            speak(`Super! Das ist ${a} plus ${b}!`);
+            level1Step = 1;
+            nextTask();
+          } else {
+            playWrongSound();
+            btn.classList.add('bg-red-100', 'border-red-400');
+            speak("Probier es noch einmal!");
+          }
+        };
+
+        actionArea.appendChild(btn);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // STUFE 2: AKTIV DAZU LEGEN + PRÜFEN-BUTTON (✔️)
+    // -------------------------------------------------------------
+    let level2TargetToAdd = 0;
+    let level2CurrentInBowl = 0;
+
+    function setupLevel2() {
+      const workArea = document.getElementById('work-area');
+      const actionArea = document.getElementById('action-area');
+      const taskHeader = document.getElementById('task-header');
+
+      const countA = Math.floor(Math.random() * 2) + 1;
+      const countB = Math.floor(Math.random() * 2) + 1;
+
+      level2TargetToAdd = countB;
+      level2CurrentInBowl = 0;
+
+      taskHeader.innerHTML = `<span>${countA} + ${countB}</span>`;
+      taskHeader.classList.remove('hidden');
+
+      // Ausgangsmenge liegt bereits da
+      for (let i = 0; i < countA; i++) {
+        workArea.appendChild(createItemSpan(currentEmoji));
+      }
+
+      speak(`Lege ${countB} weitere dazu und drücke auf Prüfen!`);
+
+      const builderContainer = document.createElement('div');
+      builderContainer.className = "w-full flex flex-col sm:flex-row items-center justify-between gap-4";
+
+      // Objekt-Spender
+      const giftBox = document.createElement('div');
+      giftBox.className = "flex items-center gap-3 bg-white p-3 rounded-2xl border-4 border-sky-200 shadow-md";
+
+      const boxIcon = document.createElement('span');
+      boxIcon.className = "text-4xl";
+      boxIcon.innerText = "📦";
+      giftBox.appendChild(boxIcon);
+
+      for (let i = 0; i < 3; i++) {
+        const clickableItem = document.createElement('button');
+        clickableItem.className = "text-5xl sm:text-6xl p-2 bg-sky-50 rounded-2xl shadow hover:scale-110 active:scale-90 transition-all border-2 border-sky-200 animate-pulse-subtle";
+        clickableItem.innerText = currentEmoji;
+
+        clickableItem.onclick = function() {
+          playPopSound();
+          const newItem = createItemSpan(currentEmoji);
+          newItem.classList.add('animate-bounce-in', 'ring-4', 'ring-sky-400', 'rounded-full');
+          workArea.appendChild(newItem);
+          level2CurrentInBowl++;
+        };
+
+        giftBox.appendChild(clickableItem);
+      }
+
+      // Prüfen Button (Grünes Häkchen)
+      const checkBtn = document.createElement('button');
+      checkBtn.className = "bg-emerald-500 hover:bg-emerald-600 border-b-8 border-emerald-700 text-white font-black text-2xl px-7 py-4 rounded-3xl shadow-xl active:translate-y-1 transition-all flex items-center gap-3 min-h-[64px]";
+      checkBtn.innerHTML = `<span>Prüfen</span> <span class="text-3xl">✔️</span>`;
+
+      checkBtn.onclick = () => {
+        if (level2CurrentInBowl === level2TargetToAdd) {
+          speak("Richtig! Gut gemacht!");
+          nextTask();
+        } else {
+          // Falsche Antwort -> Sanftes Rot-Schütteln & Sprachausgabe
+          playWrongSound();
+          workArea.classList.add('animate-shake', 'border-red-400', 'bg-red-50');
+          setTimeout(() => {
+            workArea.classList.remove('animate-shake', 'border-red-400', 'bg-red-50');
+          }, 500);
+
+          speak("Das ist noch nicht richtig, probiere es noch einmal!");
+        }
+      };
+
+      builderContainer.appendChild(giftBox);
+      builderContainer.appendChild(checkBtn);
+      actionArea.appendChild(builderContainer);
+    }
+
+    // -------------------------------------------------------------
+    // STUFE 3: DREITEILIGES BILDERGESCHICHTEN-TRIPTYCHON
+    // -------------------------------------------------------------
+    function setupLevel3() {
+      const workArea = document.getElementById('work-area');
+      const actionArea = document.getElementById('action-area');
+
+      const countA = Math.floor(Math.random() * 2) + 1; // 1 oder 2
+      const countB = Math.floor(Math.random() * 2) + 1; // 1 oder 2
+      const total = countA + countB;
+
+      const heroEmoji = '🧒';
+      const itemEmoji = currentEmoji;
+
+      speak(`Schau dir die Geschichte an! Welche Plusaufgabe passt dazu?`);
+
+      // Dreiteiliges Bild-Triptychon erstellen
+      const triptych = document.createElement('div');
+      triptych.className = "grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 w-full";
+
+      // PANEL 1: STARTMENGE
+      const p1 = document.createElement('div');
+      p1.className = "bg-gradient-to-b from-sky-50 to-indigo-50 p-4 rounded-3xl border-4 border-sky-300 flex flex-col items-center justify-between shadow-md min-h-[170px]";
+      p1.innerHTML = `
+        <div class="text-xs font-black bg-sky-200 text-sky-900 px-3 py-1 rounded-full uppercase tracking-wider mb-2">1. Vorher</div>
+        <div class="text-5xl my-1">${heroEmoji}</div>
+        <div class="flex gap-2 bg-white/80 p-2 rounded-2xl border border-sky-200">
+          ${createEmojiIconsHTML(itemEmoji, countA)}
+        </div>
+        <div class="text-sm font-bold text-slate-700 mt-2">Start: ${countA}</div>
+      `;
+
+      // PANEL 2: AKTION (Dazukommen)
+      const p2 = document.createElement('div');
+      p2.className = "bg-gradient-to-b from-amber-50 to-orange-50 p-4 rounded-3xl border-4 border-amber-300 flex flex-col items-center justify-between shadow-md min-h-[170px]";
+      p2.innerHTML = `
+        <div class="text-xs font-black bg-amber-200 text-amber-900 px-3 py-1 rounded-full uppercase tracking-wider mb-2">2. Dazukommen</div>
+        <div class="flex items-center gap-2 my-1">
+          <span class="text-4xl animate-bounce">➡️</span>
+          <span class="text-4xl">🎁</span>
+        </div>
+        <div class="flex gap-2 bg-white/80 p-2 rounded-2xl border border-amber-200">
+          ${createEmojiIconsHTML(itemEmoji, countB)}
+        </div>
+        <div class="text-sm font-bold text-slate-700 mt-2">+${countB} dazu</div>
+      `;
+
+      // PANEL 3: ENDERGEBNIS
+      const p3 = document.createElement('div');
+      p3.className = "bg-gradient-to-b from-emerald-50 to-teal-50 p-4 rounded-3xl border-4 border-emerald-300 flex flex-col items-center justify-between shadow-md min-h-[170px]";
+      p3.innerHTML = `
+        <div class="text-xs font-black bg-emerald-200 text-emerald-900 px-3 py-1 rounded-full uppercase tracking-wider mb-2">3. Zusammen</div>
+        <div class="text-5xl my-1">${heroEmoji}✨</div>
+        <div class="flex gap-2 bg-white/80 p-2 rounded-2xl border border-emerald-200">
+          ${createEmojiIconsHTML(itemEmoji, total)}
+        </div>
+        <div class="text-sm font-bold text-slate-700 mt-2">Ergebnis: ${total}</div>
+      `;
+
+      triptych.appendChild(p1);
+      triptych.appendChild(p2);
+      triptych.appendChild(p3);
+
+      workArea.appendChild(triptych);
+
+      // Plusaufgaben-Karten unten
+      const correctOption = `${countA} + ${countB}`;
+      const optionsSet = new Set([correctOption]);
+
+      while (optionsSet.size < 3) {
+        let rA = Math.floor(Math.random() * 2) + 1;
+        let rB = Math.floor(Math.random() * 2) + 1;
+        optionsSet.add(`${rA} + ${rB}`);
+      }
+
+      const options = Array.from(optionsSet).sort(() => Math.random() - 0.5);
+
+      options.forEach(optStr => {
+        const [a, b] = optStr.split(' + ').map(Number);
+        const btn = document.createElement('button');
+        btn.className = "bg-white border-b-8 border-indigo-500 hover:bg-indigo-50 rounded-3xl p-4 sm:p-5 shadow-xl active:scale-95 transition-all min-w-[130px] flex items-center justify-center";
+        
+        btn.innerHTML = `
+          <span class="text-3xl sm:text-4xl font-black text-indigo-950">${a} + ${b}</span>
+        `;
+
+        btn.onclick = () => {
+          if (optStr === correctOption) {
+            btn.classList.add('bg-emerald-200', 'border-emerald-600');
+            speak(`Perfekt! ${a} plus ${b} passt genau zur Geschichte!`);
+            nextTask();
+          } else {
+            playWrongSound();
+            btn.classList.add('bg-red-100', 'border-red-400');
+            speak("Schau dir das Bild genau an. Welche Aufgabe passt?");
+          }
+        };
+
+        actionArea.appendChild(btn);
+      });
+    }
+
+    function createEmojiIconsHTML(emoji, count) {
+      let html = '';
+      for (let i = 0; i < count; i++) {
+        html += `<span class="text-3xl sm:text-4xl">${emoji}</span>`;
+      }
+      return html;
+    }
+
+    function createItemSpan(emoji, sizeClass = 'text-6xl sm:text-7xl') {
+      const span = document.createElement('span');
+      span.className = `${sizeClass} inline-block select-none filter drop-shadow`;
+      span.innerText = emoji;
+      return span;
+    }
+
+    function showReward() {
+      document.getElementById('view-game').classList.add('hidden');
+      document.getElementById('view-reward').classList.remove('hidden');
+      document.getElementById('view-reward').classList.add('flex');
+      
+      playFanfareSound();
+      speak("Klasse gemacht! Du hast alle Aufgaben super gelöst!");
+
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 150,
+          spread: 100,
+          origin: { y: 0.6 }
+        });
+      }
+    }
+
+    window.onload = () => {
+      document.body.addEventListener('click', () => initAudio(), { once: true });
+    };
+  </script>
+</body>
+</html>
